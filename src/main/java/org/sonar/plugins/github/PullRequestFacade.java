@@ -19,7 +19,6 @@
  */
 package org.sonar.plugins.github;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
@@ -28,12 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
+
 import org.apache.commons.io.IOUtils;
 import org.kohsuke.github.GHCommitState;
 import org.kohsuke.github.GHCommitStatus;
-import org.kohsuke.github.GHIssueComment;
 import org.kohsuke.github.GHPullRequest;
 import org.kohsuke.github.GHPullRequestFileDetail;
 import org.kohsuke.github.GHPullRequestReviewComment;
@@ -47,6 +47,8 @@ import org.sonar.api.batch.InstantiationStrategy;
 import org.sonar.api.batch.fs.InputFile;
 import org.sonar.api.batch.fs.InputPath;
 import org.sonar.api.scan.filesystem.PathResolver;
+
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Facade for all WS interaction with GitHub.
@@ -159,16 +161,19 @@ public class PullRequestFacade implements BatchComponent {
     for (String line : IOUtils.readLines(new StringReader(patch))) {
       if (line.startsWith("@")) {
         // http://en.wikipedia.org/wiki/Diff_utility#Unified_format
-        Matcher matcher = Pattern.compile("@@\\p{IsWhite_Space}-[0-9]+(?:,[0-9]+)?\\p{IsWhite_Space}\\+([0-9]+)(?:,[0-9]+)?\\p{IsWhite_Space}@@.*").matcher(line);
+        Matcher matcher = Pattern.compile("@@\\s-[0-9]+(?:,[0-9]+)?\\s\\+([0-9]+)(?:,[0-9]+)?\\s@@.*").matcher(line);
         if (!matcher.matches()) {
           throw new IllegalStateException("Unable to parse patch line " + line + "\nFull patch: \n" + patch);
         }
         currentLine = Integer.parseInt(matcher.group(1));
       } else if (line.startsWith("-")) {
         // Skip removed lines
-      } else if (line.startsWith("+") || line.startsWith(" ")) {
-        // Count added and unmodified lines
+      } else if (line.startsWith("+")) {
+        // Count added lines
         patchLocationMapping.put(currentLine, patchLocation);
+        currentLine++;
+      } else if (line.startsWith(" ")) {
+        // Count unmodified lines, but do not make an inline comment.
         currentLine++;
       } else if (line.startsWith("\\")) {
         // I'm only aware of \ No newline at end of file
@@ -222,26 +227,6 @@ public class PullRequestFacade implements BatchComponent {
       } catch (IOException e) {
         throw new IllegalStateException("Unable to delete review comment with id " + reviewToDelete.getId(), e);
       }
-    }
-  }
-
-  public void removePreviousGlobalComments() {
-    try {
-      for (GHIssueComment comment : pr.listComments()) {
-        if (myself.equals(comment.getUser().getLogin())) {
-          comment.delete();
-        }
-      }
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to comment the pull request", e);
-    }
-  }
-
-  public void addGlobalComment(String comment) {
-    try {
-      pr.comment(comment);
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to comment the pull request", e);
     }
   }
 

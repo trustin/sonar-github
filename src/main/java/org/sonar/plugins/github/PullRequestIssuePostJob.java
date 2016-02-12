@@ -55,18 +55,12 @@ public class PullRequestIssuePostJob implements org.sonar.api.batch.PostJob, Che
 
   @Override
   public void executeOn(Project project, SensorContext context) {
-    GlobalReport report = new GlobalReport(markDownUtils);
+    GlobalReport report = new GlobalReport();
     Map<InputFile, Map<Integer, StringBuilder>> commentsToBeAddedByLine = processIssues(report);
 
     updateReviewComments(commentsToBeAddedByLine);
 
     pullRequestFacade.deleteOutdatedComments();
-
-    pullRequestFacade.removePreviousGlobalComments();
-    if (report.hasNewIssue()) {
-      pullRequestFacade.addGlobalComment(report.formatForMarkdown());
-    }
-
     pullRequestFacade.createOrUpdateSonarQubeStatus(report.getStatus(), report.getStatusDescription());
   }
 

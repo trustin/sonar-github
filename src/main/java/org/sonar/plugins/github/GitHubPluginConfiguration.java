@@ -30,8 +30,6 @@ import org.sonar.api.config.Settings;
 @InstantiationStrategy(InstantiationStrategy.PER_BATCH)
 public class GitHubPluginConfiguration implements BatchComponent {
 
-  public static final int MAX_GLOBAL_ISSUES  = 10;
-
   private Settings settings;
   private Pattern gitSshPattern;
   private Pattern gitHttpPattern;
